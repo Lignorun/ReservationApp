@@ -1,12 +1,62 @@
+using Microsoft.EntityFrameworkCore;
+using ReservationApp.DAL.Models;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
+
+// 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowSpecificOrigins", policy =>
+    {
+        // On production, be more restrict than here
+        //policy.WithOrigins("http://localhost:5000") // Add more domin here
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()  
+              .AllowAnyMethod(); 
+    });
+});
+
+
+// Retrieves the database connection password from the environment variable, allowing the password to be protected 
+// and easily configured in any environment where the code runs
+string? dbPassword = Environment.GetEnvironmentVariable("DB_PASSWORD");
+
+// The same for the Id of the server. 
+string? dbId = Environment.GetEnvironmentVariable("DB_ID");
+
+// The connection string is set at appsettings.json
+string? connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
+if (connectionString == null)
+{
+    throw new InvalidOperationException("Connection string 'DefaultConnection' not found in configuration.");
+}
+
+if (dbPassword == null)
+{
+    throw new InvalidOperationException("DB_PASSWORD environment variable not set.");
+}
+
+if (dbId == null)
+{
+    throw new InvalidOperationException("DB_Id environment variable not set.");
+}
+
+
+connectionString += $";User Id={dbId};Password={dbPassword}";
+
+
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseSqlServer(connectionString)); 
+
+
 builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
+
+// For the Swagger
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
@@ -14,28 +64,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-var summaries = new[]
-{
-    "Freezing", "Bracing", "Chilly", "Cool", "Mild", "Warm", "Balmy", "Hot", "Sweltering", "Scorching"
-};
-
-app.MapGet("/weatherforecast", () =>
-{
-    var forecast = Enumerable.Range(1, 5).Select(index =>
-        new WeatherForecast
-        (
-            DateOnly.FromDateTime(DateTime.Now.AddDays(index)),
-            Random.Shared.Next(-20, 55),
-            summaries[Random.Shared.Next(summaries.Length)]
-        ))
-        .ToArray();
-    return forecast;
-})
-.WithName("GetWeatherForecast");
+// Restrict the origin of all the requests to the API
+app.UseCors("AllowSpecificOrigins");
 
 app.Run();
 
-internal record WeatherForecast(DateOnly Date, int TemperatureC, string? Summary)
-{
-    public int TemperatureF => 32 + (int)(TemperatureC / 0.5556);
-}
+
