@@ -4,7 +4,7 @@ using ReservationApp.DAL.Models;
 var builder = WebApplication.CreateBuilder(args);
 
 
-// 
+// CORS configuration 
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigins", policy =>
@@ -62,9 +62,16 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+// Redirect any error to an error page
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Home/Error"); // Redirects errors to a specific page
+    app.UseHsts(); // Enforces HTTPS security policy
+}
+
 app.UseHttpsRedirection();
 
-// Restrict the origin of all the requests to the API
+// Restrict the origin of all the requests to the API (CORS)
 app.UseCors("AllowSpecificOrigins");
 
 app.Run();
